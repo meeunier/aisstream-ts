@@ -51,6 +51,11 @@ export {
 } from "./client";
 export type {
   AISStreamClientConfig,
+  AISStreamClientState,
   WebSocketLike,
   WebSocketConstructor,
 } from "./client";
+
+// --- Class B static-data merger ---
+export { ClassBStaticMerger } from "./merger";
+export type { ClassBStaticMergerConfig, MergedVesselStatic } from "./merger";

@@ -46,6 +46,11 @@ describe("toPositionFix — Class A PositionReport", () => {
     expect(toPositionFix(env, TS)).toBeNull();
   });
 
+  it("returns null when Valid is false", () => {
+    const env = makePositionReport({ Valid: false });
+    expect(toPositionFix(env, TS)).toBeNull();
+  });
+
   it("uses the caller-supplied timestamp", () => {
     const env = makePositionReport();
     const customTs = new Date("2024-01-01T00:00:00Z");
@@ -61,11 +66,21 @@ describe("toPositionFix — Class B reports", () => {
     expect(fix?.sog).toBe(4.5);
   });
 
+  it("StandardClassBPositionReport: returns null when Valid is false", () => {
+    const env = makeStandardClassBPositionReport({ Valid: false });
+    expect(toPositionFix(env, TS)).toBeNull();
+  });
+
   it("ExtendedClassBPositionReport: navStatus is null (Class B doesn't broadcast it)", () => {
     const env = makeExtendedClassBPositionReport({ Sog: 5.5 });
     const fix = toPositionFix(env, TS);
     expect(fix?.navStatus).toBeNull();
     expect(fix?.sog).toBe(5.5);
+  });
+
+  it("ExtendedClassBPositionReport: returns null when Valid is false", () => {
+    const env = makeExtendedClassBPositionReport({ Valid: false });
+    expect(toPositionFix(env, TS)).toBeNull();
   });
 });
 

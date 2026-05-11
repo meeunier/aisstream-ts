@@ -24,6 +24,12 @@ describe("normalizeSog", () => {
     expect(normalizeSog(-0.1)).toBeNull();
   });
 
+  it("returns null for values above the AIS max 102.2 kn", () => {
+    expect(normalizeSog(102.3)).toBeNull(); // sentinel
+    expect(normalizeSog(150)).toBeNull();
+    expect(normalizeSog(1000)).toBeNull();
+  });
+
   it("returns 0 unchanged (an anchored vessel is reporting 0 kn)", () => {
     expect(normalizeSog(0)).toBe(0);
   });
@@ -31,6 +37,7 @@ describe("normalizeSog", () => {
   it("returns a valid SOG unchanged", () => {
     expect(normalizeSog(14.7)).toBe(14.7);
     expect(normalizeSog(0.5)).toBe(0.5);
+    expect(normalizeSog(102.2)).toBe(102.2); // max valid
   });
 });
 
@@ -66,13 +73,15 @@ describe("normalizeHeading", () => {
     expect(normalizeHeading(0)).toBe(0);
   });
 
-  it("returns null for values > 360", () => {
+  it("returns null for values >= 360 (parity with normalizeCog)", () => {
+    expect(normalizeHeading(360)).toBeNull();
     expect(normalizeHeading(361)).toBeNull();
   });
 
   it("returns valid headings unchanged", () => {
     expect(normalizeHeading(90)).toBe(90);
     expect(normalizeHeading(180)).toBe(180);
+    expect(normalizeHeading(359.9)).toBe(359.9);
   });
 });
 
@@ -168,5 +177,10 @@ describe("parseAisTimestamp", () => {
     expect(parseAisTimestamp("not a timestamp")).toBeNull();
     expect(parseAisTimestamp("2026-05-07T18:17:50Z")).toBeNull(); // ISO 8601, not AISStream format
     expect(parseAisTimestamp("")).toBeNull();
+  });
+
+  it("returns null for non-UTC offsets (refuses to silently coerce)", () => {
+    expect(parseAisTimestamp("2026-05-07 18:17:50.5 +0500 UTC")).toBeNull();
+    expect(parseAisTimestamp("2026-05-07 18:17:50.5 +0100 UTC")).toBeNull();
   });
 });

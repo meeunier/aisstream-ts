@@ -49,9 +49,17 @@ export function trimAisString(s: string | undefined | null): string | undefined 
 
 // --- Numeric sentinel normalizers -----------------------------------------
 
-/** Normalize SOG (speed over ground) — returns null for sentinel/invalid values. */
+/**
+ * Normalize SOG (speed over ground) — returns null for sentinel/invalid values.
+ *
+ * AIS encodes speed in 0.1 kn increments; the maximum non-sentinel value is
+ * 102.2 kn. The sentinel 102.3 means "not available". Values above 102.2 or
+ * below 0 are out-of-spec and treated as invalid.
+ */
 export function normalizeSog(sog: number): number | null {
-  return sog === SOG_NA || sog < 0 ? null : sog;
+  if (sog === SOG_NA) return null;
+  if (sog < 0 || sog > 102.2) return null;
+  return sog;
 }
 
 /** Normalize COG (course over ground) — returns null for sentinel/invalid values. */
@@ -59,9 +67,14 @@ export function normalizeCog(cog: number): number | null {
   return cog === COG_NA || cog < 0 || cog >= 360 ? null : cog;
 }
 
-/** Normalize TrueHeading — returns null for sentinel/invalid values. */
+/**
+ * Normalize TrueHeading — returns null for sentinel/invalid values.
+ *
+ * Valid range is [0, 360). The sentinel 511 means "not available"; the
+ * upper bound is exclusive, matching `normalizeCog`.
+ */
 export function normalizeHeading(h: number): number | null {
-  return h === HEADING_NA || h < 0 || h > 360 ? null : h;
+  return h === HEADING_NA || h < 0 || h >= 360 ? null : h;
 }
 
 /**
@@ -111,8 +124,11 @@ export function dimToLengthBeamM(d: Dimension): {
  * Not ISO 8601 (space separator, trailing "UTC" label, nanosecond precision).
  * JavaScript's built-in `Date.parse` cannot handle this format reliably.
  *
- * Returns `null` if the input doesn't match the expected format. Truncates
- * sub-millisecond precision (JS `Date` is millisecond-precision).
+ * Returns `null` if the input doesn't match the expected format OR if the
+ * timezone offset is not exactly `+0000`. AISStream always emits UTC; a
+ * non-zero offset would indicate a server-side format change we should not
+ * silently misinterpret as UTC. Truncates sub-millisecond precision (JS
+ * `Date` is millisecond-precision).
  */
 export function parseAisTimestamp(time_utc: string): Date | null {
   // Match: YYYY-MM-DD HH:MM:SS[.fractional] +ZZZZ UTC
@@ -120,12 +136,12 @@ export function parseAisTimestamp(time_utc: string): Date | null {
     /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(\.\d+)? (\+\d{4}) UTC$/,
   );
   if (!m) return null;
-  const [, date, time, frac] = m;
+  const [, date, time, frac, offset] = m;
+  // Refuse to silently coerce non-UTC offsets to UTC.
+  if (offset !== "+0000") return null;
   // JS Date precision is milliseconds — truncate sub-ms digits.
   // frac is ".801045713" → take ".801" (4 chars including the dot).
   const ms = frac ? frac.substring(0, 4).padEnd(4, "0") : "";
-  // Combine into an ISO-8601 string. The zone is always "+0000 UTC" in
-  // AISStream output today; we hard-code Z for parsing safety.
   const iso = `${date}T${time}${ms}Z`;
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;

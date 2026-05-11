@@ -94,6 +94,7 @@ export function toPositionFix(env: AisEnvelope, ts: Date): PositionFix | null {
   switch (env.MessageType) {
     case "PositionReport": {
       const m = env.Message.PositionReport;
+      if (!m.Valid) return null;
       if (!isValidPosition(m.Latitude, m.Longitude)) return null;
       return {
         mmsi: env.MetaData.MMSI,
@@ -108,6 +109,7 @@ export function toPositionFix(env: AisEnvelope, ts: Date): PositionFix | null {
     }
     case "StandardClassBPositionReport": {
       const m = env.Message.StandardClassBPositionReport;
+      if (!m.Valid) return null;
       if (!isValidPosition(m.Latitude, m.Longitude)) return null;
       return {
         mmsi: env.MetaData.MMSI,
@@ -122,6 +124,7 @@ export function toPositionFix(env: AisEnvelope, ts: Date): PositionFix | null {
     }
     case "ExtendedClassBPositionReport": {
       const m = env.Message.ExtendedClassBPositionReport;
+      if (!m.Valid) return null;
       if (!isValidPosition(m.Latitude, m.Longitude)) return null;
       return {
         mmsi: env.MetaData.MMSI,

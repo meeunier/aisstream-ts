@@ -61,6 +61,9 @@ import {
   toPositionFix,             // (env, ts) => PositionFix | null
   toVesselStatic,            // (env, ts) => VesselStatic | null
 
+  // Class B two-part static-data merger
+  ClassBStaticMerger,        // class — merges Part A + Part B by MMSI
+
   // Sentinel-aware normalizers
   trimAisString,             // (s) => string | undefined
   normalizeSog,              // (sog) => number | null    (handles 102.3)
@@ -86,7 +89,10 @@ import type {
   StaticDataReport,
   PositionFix,               // canonical output of toPositionFix
   VesselStatic,              // canonical output of toVesselStatic
+  MergedVesselStatic,        // canonical output of ClassBStaticMerger.ingest
+  ClassBStaticMergerConfig,
   AISStreamClientConfig,
+  AISStreamClientState,      // "idle" | "connecting" | "open" | "reconnecting" | "stopped"
   WebSocketLike,             // structural type for custom WebSocket impls
   WebSocketConstructor,
 } from "aisstream-ts";
@@ -97,14 +103,20 @@ The client's config:
 ```ts
 type AISStreamClientConfig = {
   apiKey: string;
-  boundingBoxes: Array<[[number, number], [number, number]]>;   // [[swLat, swLon], [neLat, neLon]]
+  boundingBoxes: Array<[[number, number], [number, number]]>;   // [[swLat, swLon], [neLat, neLon]] — validated on construction
   filterMessageTypes?: ReadonlyArray<string>;                   // omit for all
   url?: string;                                                  // override endpoint (e.g. for testing)
   WebSocketImpl?: WebSocketConstructor;                          // for Node < 22
-  onMessage: (env: AisEnvelope) => void | Promise<void>;
-  onError?: (err: unknown) => void;
+  connectTimeoutMs?: number;                                     // default 30 000
+  expectMessageWithinMs?: number;                                // silent-socket watchdog; default off
+  onMessage: (env: AisEnvelope) => void | Promise<void>;         // called serially in arrival order
+  onError?: (err: unknown) => void;                              // defaults to console.error
 };
 ```
+
+Security: the `apiKey` is included in the subscription frame sent on
+each connect. Do not log the config object, the subscription frame, or
+the `AISStreamClient` instance — the key will be visible in plain text.
 
 ## Why this exists
 
@@ -139,10 +151,36 @@ on the wire. Each emit carries exactly one:
 - **Part B** (`PartNumber: true`): `CallSign`, `ShipType`, `Dimension`.
 
 The two parts can arrive minutes apart, sometimes interleaved with other
-messages. If you naively overwrite a vessel record on each emit, you'll
-clobber the Name when Part B arrives. `toVesselStatic` extracts whatever
-the single message carried; merging across parts (`COALESCE`-style by
-MMSI) is the caller's job.
+messages, and either may be missing entirely.
+
+`toVesselStatic` returns whatever the single message carried; the
+`ClassBStaticMerger` helper takes those single-half records and emits a
+merged `MergedVesselStatic` the moment both halves are seen for a given
+MMSI. It bounds memory with a per-MMSI TTL (default 30 min) and a hard
+cap on the pending-half cache (default 10 000 MMSIs).
+
+```ts
+import { AISStreamClient, ClassBStaticMerger, toVesselStatic } from "aisstream-ts";
+
+const merger = new ClassBStaticMerger();
+
+const client = new AISStreamClient({
+  // ...
+  onMessage: (env) => {
+    const merged = merger.ingest(toVesselStatic(env, new Date()));
+    if (merged && merged.parts === "complete") {
+      // Use merged.name, merged.callSign, merged.typeCode, merged.lengthM, merged.beamM
+    }
+  },
+});
+
+// Periodically flush halves whose partner never arrived:
+setInterval(() => {
+  for (const partial of merger.flushExpired()) {
+    // partial.parts is "a-only" or "b-only" — use if a partial is acceptable.
+  }
+}, 60_000);
+```
 
 ### 3. Vessel size is encoded as four offsets
 
