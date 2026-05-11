@@ -1,0 +1,71 @@
+{
+  "name": "aisstream-ts",
+  "version": "0.1.0",
+  "description": "Typed TypeScript client for AISStream.io. Handles reconnects, sentinel normalization, Class B two-part static merge.",
+  "keywords": [
+    "ais",
+    "aisstream",
+    "marine",
+    "maritime",
+    "vessel-tracking",
+    "websocket",
+    "typescript"
+  ],
+  "homepage": "https://github.com/meeunier/aisstream-ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meeunier/aisstream-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/meeunier/aisstream-ts/issues"
+  },
+  "license": "MIT",
+  "author": "Antoine Meunier <a@meunier.co>",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "ws": "^8.18.0"
+  },
+  "peerDependencies": {
+    "ws": "^8.18.0"
+  },
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
