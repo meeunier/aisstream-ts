@@ -1,6 +1,6 @@
 {
   "name": "aisstream-ts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed TypeScript client for AISStream.io. Handles reconnects, sentinel normalization, Class B two-part static merge.",
   "keywords": [
     "ais",
