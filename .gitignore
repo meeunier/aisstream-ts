@@ -5,3 +5,6 @@ dist/
 .DS_Store
 .vitest-cache/
 coverage/
+
+# Local agent state — never commit to a public repo.
+.claude/
